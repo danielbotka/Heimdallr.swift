@@ -198,18 +198,20 @@ public let HeimdallrErrorNotAuthorized = 2
   ///
   /// - parameter request: An unauthenticated URLRequest.
   /// - parameter completion: A callback to invoke with the authenticated request.
-  open func authenticateRequest(_ request: URLRequest, completion: @escaping (Result<URLRequest, NSError>) -> Void) {
+  open func authenticateRequest(_ request: URLRequest, customProperties: [String:String], completion: @escaping (Result<URLRequest, NSError>) -> Void) {
     requestQueue.async {
       self.blockRequestQueue()
-      self.authenticateRequestConcurrently(request, completion: completion)
+      self.authenticateRequestConcurrently(request, customProperties: customProperties, completion: completion)
     }
   }
   
-  private func authenticateRequestConcurrently(_ request: URLRequest, completion: @escaping (Result<URLRequest, NSError>) -> Void) {
+  private func authenticateRequestConcurrently(_ request: URLRequest, customProperties: [String:String], completion: @escaping (Result<URLRequest, NSError>) -> Void) {
     if let accessToken = accessToken {
       if let expiration = accessToken.expiresAt, expiration < Date() {
         if let refreshToken = accessToken.refreshToken {
-          requestAccessToken(grant: .refreshToken(refreshToken)) { result in
+          var parameters = customProperties
+          parameters["refresh_token"] = refreshToken
+          requestAccessToken(grant: .extension("refresh_token", parameters)) { result in
             completion(result.analysis(ifSuccess: { accessToken in
               let authenticatedRequest = self.authenticateRequest(request, accessToken: accessToken)
               return .success(authenticatedRequest)
